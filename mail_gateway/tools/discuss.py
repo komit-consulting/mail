@@ -3,21 +3,25 @@
 
 from odoo.addons.mail.tools.discuss import Store
 
-original_one_id = Store.one_id
+original_get_id = Store.One._get_id
 
 
-def extended_one_id(record, /, *, as_thread=False):
-    result = original_one_id(record, as_thread=as_thread)
+def extended_get_id(self):
+    result = original_get_id(self)
     # This patch is applied at import time, so it is shared by every registry
     # served by the process, while ``gateway_channel_ids`` only exists in the
     # registries where this module is installed. Check the actual registry.
     if (
-        result
-        and record._name == "res.partner"
-        and "gateway_channel_ids" in record._fields
+        self.records
+        and self.records._name == "res.partner"
+        and "gateway_channel_ids" in self.records._fields
     ):
-        result["gateway_channels"] = record.sudo().gateway_channel_ids.mail_format()
+        if isinstance(result, int):
+            result = {"id": result}
+        result["gateway_channels"] = (
+            self.records.sudo().gateway_channel_ids.mail_format()
+        )
     return result
 
 
-Store.one_id = staticmethod(extended_one_id)
+Store.One._get_id = extended_get_id
